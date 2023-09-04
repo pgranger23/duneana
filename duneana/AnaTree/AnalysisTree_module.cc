@@ -85,6 +85,8 @@
 
 #include "nusimdata/SimulationBase/GTruth.h"
 
+#include "nusimdata/SimulationBase/GTruth.h"
+
 #include <cstddef> // std::ptrdiff_t
 #include <cstring> // std::memcpy()
 #include <vector>
@@ -262,7 +264,8 @@ namespace dune {
       TrackData_t<Float_t> trkmommsllhd;   // track momentum from multiple scattering LLHD method
       TrackData_t<Short_t> trksvtxid;     // Vertex ID associated with the track start
       TrackData_t<Short_t> trkevtxid;     // Vertex ID associated with the track end
-      PlaneData_t<Int_t> trkpidndf;       // particle PID pdg code
+      PlaneData_t<Int_t> trkpidpdg;       // [deprecated] particle PID pdg code
+      PlaneData_t<Int_t> trkpidndf;       // Particle PID ndf based on valid hits
       PlaneData_t<Float_t> trkpidchi;
       PlaneData_t<Float_t> trkpidchipr;   // particle PID chisq for proton
       PlaneData_t<Float_t> trkpidchika;   // particle PID chisq for kaon
@@ -645,9 +648,6 @@ namespace dune {
     Int_t     ccnc_truth[kMaxTruth];      //0=CC 1=NC
     Int_t     mode_truth[kMaxTruth];      //0=QE/El, 1=RES, 2=DIS, 3=Coherent production
     Float_t   nuWeight_truth[kMaxTruth];     //neutrino weight from generator
-    Float_t   tgt_px[kMaxTruth];     //nucleon momentum
-    Float_t   tgt_py[kMaxTruth];    
-    Float_t   tgt_pz[kMaxTruth];     
     Float_t  enu_truth[kMaxTruth];       //true neutrino energy
     Float_t  Q2_truth[kMaxTruth];        //Momentum transfer squared
     Float_t  W_truth[kMaxTruth];         //hadronic invariant mass
@@ -1526,6 +1526,7 @@ void dune::AnalysisTreeDataStruct::TrackDataStruct::Resize(size_t nTracks)
   trksvtxid.resize(MaxTracks);
   trkevtxid.resize(MaxTracks);
   // PID variables
+  trkpidpdg.resize(MaxTracks);
   trkpidndf.resize(MaxTracks);
   trkpidchi.resize(MaxTracks);
   trkpidchipr.resize(MaxTracks);
@@ -1640,6 +1641,7 @@ void dune::AnalysisTreeDataStruct::TrackDataStruct::Clear() {
     FillWith(trktpc[iTrk], -1);
     FillWith(trkxyz[iTrk], 0.);
 
+    FillWith(trkpidpdg[iTrk]    , -1);
     FillWith(trkpidndf[iTrk]    , -9999);
     FillWith(trkpidchi[iTrk]    , -99999.);
     FillWith(trkpidchipr[iTrk]  , -99999.);
@@ -1851,6 +1853,9 @@ void dune::AnalysisTreeDataStruct::TrackDataStruct::SetAddresses(
 
   BranchName = "trkpidmvapr_" + TrackLabel;
   CreateBranch(BranchName, trkpidmvapr, BranchName + NTracksIndexStr + "/F");
+
+  BranchName = "trkpidpdg_" + TrackLabel;
+  CreateBranch(BranchName, trkpidpdg, BranchName + NTracksIndexStr + "[3]/I");
 
   BranchName = "trkpidndf_" + TrackLabel;
   CreateBranch(BranchName, trkpidndf, BranchName + NTracksIndexStr + "[3]/I");
@@ -2357,9 +2362,6 @@ void dune::AnalysisTreeDataStruct::ClearLocalData() {
   std::fill(ccnc_truth, ccnc_truth + sizeof(ccnc_truth)/sizeof(ccnc_truth[0]), -99999.);
   std::fill(mode_truth, mode_truth + sizeof(mode_truth)/sizeof(mode_truth[0]), -99999.);
   std::fill(nuWeight_truth, nuWeight_truth + sizeof(nuWeight_truth)/sizeof(nuWeight_truth[0]), 1.);
-  std::fill(tgt_px, tgt_px + sizeof(tgt_px)/sizeof(tgt_px[0]), -99999.);
-  std::fill(tgt_py, tgt_py + sizeof(tgt_py)/sizeof(tgt_py[0]), -99999.);
-  std::fill(tgt_pz, tgt_pz + sizeof(tgt_pz)/sizeof(tgt_pz[0]), -99999.);
   std::fill(enu_truth, enu_truth + sizeof(enu_truth)/sizeof(enu_truth[0]), -99999.);
   std::fill(Q2_truth, Q2_truth + sizeof(Q2_truth)/sizeof(Q2_truth[0]), -99999.);
   std::fill(W_truth, W_truth + sizeof(W_truth)/sizeof(W_truth[0]), -99999.);
@@ -3020,9 +3022,6 @@ void dune::AnalysisTreeDataStruct::SetAddresses(
     CreateBranch("ccnc_truth",ccnc_truth,"ccnc_truth[mcevts_truth]/I");
     CreateBranch("mode_truth",mode_truth,"mode_truth[mcevts_truth]/I");
     CreateBranch("nuWeight_truth",nuWeight_truth,"nuWeight_truth[mcevts_truth]/F");
-    CreateBranch("tgt_px",tgt_px,"tgt_px[mcevts_truth]/F");
-    CreateBranch("tgt_py",tgt_py,"tgt_py[mcevts_truth]/F");
-    CreateBranch("tgt_pz",tgt_pz,"tgt_pz[mcevts_truth]/F");
     CreateBranch("enu_truth",enu_truth,"enu_truth[mcevts_truth]/F");
     CreateBranch("Q2_truth",Q2_truth,"Q2_truth[mcevts_truth]/F");
     CreateBranch("W_truth",W_truth,"W_truth[mcevts_truth]/F");
@@ -4586,13 +4585,11 @@ void dune::AnalysisTree::analyze(const art::Event& evt)
         if(fmpid.isValid()) {
           std::vector<const anab::ParticleID*> pids = fmpid.at(iTrk);
           
-          std::cout << "Starting trk " << iTrk << " out of " << NTracks << " PID print:" << std::endl;
           for (size_t ipid = 0; ipid < pids.size(); ++ipid){
             if (!pids[ipid]->PlaneID().isValid) continue;
             int planenum = pids[ipid]->PlaneID().Plane;
-            if (planenum<0||planenum>2) continue; 
+            if (planenum<0||planenum>2) continue;
 
-            std::cout << "ipid: " << ipid << std::endl;
             auto pidScore = pids[ipid]->ParticleIDAlgScores();
             for(auto pScore: pidScore){
               double chi2value = pScore.fValue;
@@ -4898,10 +4895,6 @@ void dune::AnalysisTree::analyze(const art::Event& evt)
             if ( gt ){
               auto gtruth = (*gt)[0];
               fData->nuWeight_truth[neutrino_i] = gtruth.fweight;;
-              gtruth.fTgtP4.Print();
-              fData->tgt_px[neutrino_i] = gtruth.fTgtP4.X();
-              fData->tgt_py[neutrino_i] = gtruth.fTgtP4.Y();
-              fData->tgt_pz[neutrino_i] = gtruth.fTgtP4.Z();
             }
             //flux information
             //
