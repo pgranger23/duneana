@@ -75,11 +75,12 @@ namespace caf {
 
 
     private:
-      void AddGlobalTreeToFile(TFile* f, SRGlobal& global);
+      void AddGlobalTreeToFile(TFile* f, SRGlobal& global, std::vector<std::vector<double>> &shifts);
       void FillTruthInfo(caf::StandardRecord& sr,
                          std::vector<simb::MCTruth> const& truth,
                          std::vector<simb::MCFlux> const& flux,
                          art::Event const& evt) const;
+      genie::EventRecord buildEventRecord(art::Event const & evt);
 
       std::string fMVASelectLabel;
       std::string fMVASelectNueLabel;
@@ -104,6 +105,8 @@ namespace caf {
       int meta_run, meta_subrun, meta_version;
 
       systtools::provider_list_t fSystProviders;
+      std::vector<std::vector<float>> fDefaultSystWgt;
+      std::vector<float> fDefaultCvWgt;
 
   }; // class CAFMaker
 
@@ -133,7 +136,7 @@ namespace caf {
     fhicl::ParameterSet syst_provider_config = pset.get<fhicl::ParameterSet>("generated_systematic_provider_configuration");
 
     // TODO - this was crashing with NULL genie Registry
-    //    fSystProviders = systtools::ConfigureISystProvidersFromParameterHeaders(syst_provider_config);
+    fSystProviders = systtools::ConfigureISystProvidersFromParameterHeaders(syst_provider_config);
 
 
     if(pset.get<bool>("CreateCAF", true)){
@@ -162,7 +165,11 @@ namespace caf {
 
       // Create the branch. We will update the address before we write the tree
       caf::StandardRecord* rec = 0;
+      std::vector<float>* cvwgt = 0;
+      std::vector<std::vector<float>>* xsSyst_wgt = 0;
       fTree->Branch("rec", &rec);
+      fTree->Branch("cvwgt", &cvwgt);
+      fTree->Branch("xsSyst_wgt", &xsSyst_wgt);
     }
 
     if(fFlatFile){
@@ -186,6 +193,8 @@ namespace caf {
 
     caf::SRGlobal global;
 
+    std::vector<std::vector<double>> shifts;
+
     // make DUNErw variables
     for( auto &sp : fSystProviders ) {
       for(const systtools::SystParamHeader& head: sp->GetSystMetaData()){
@@ -195,23 +204,28 @@ namespace caf {
         hdr.nshifts = head.paramVariations.size();
         hdr.name = head.prettyName;
         hdr.id = head.systParamId; // TODO is this necessary?
+        shifts.push_back(std::vector<double>(head.paramVariations));
 
         global.wgts.params.push_back(hdr);
+        fDefaultSystWgt.push_back(std::move(std::vector<float>(head.paramVariations.size(), 1.0)));
+        fDefaultCvWgt.push_back(1);
       }
     }
 
-    if(fOutFile) AddGlobalTreeToFile(fOutFile, global);
-    if(fFlatFile) AddGlobalTreeToFile(fFlatFile, global);
+    if(fOutFile) AddGlobalTreeToFile(fOutFile, global, shifts);
+    if(fFlatFile) AddGlobalTreeToFile(fFlatFile, global, shifts);
   }
 
   //------------------------------------------------------------------------------
-  void CAFMaker::AddGlobalTreeToFile(TFile* f, SRGlobal& global)
+  void CAFMaker::AddGlobalTreeToFile(TFile* f, SRGlobal& global, std::vector<std::vector<double>> &shifts)
   {
     f->cd();
     TTree* globalTree = new TTree("globalTree", "globalTree");
     caf::SRGlobal* pglobal = &global;
     TBranch* br = globalTree->Branch("global", "caf::SRGlobal", &pglobal);
+    TBranch* br_shifts = globalTree->Branch("shifts", &shifts);
     if(!br) abort();
+    if(!br_shifts) abort();
     globalTree->Fill();
     globalTree->Write();
   }
@@ -275,6 +289,18 @@ namespace caf {
       sr.ePi0 = 0.;
       sr.eOther = 0.;
 
+      float weight = 0;
+      auto gt = evt.getHandle< std::vector<simb::GTruth> >("generator");
+      if ( gt ){
+        auto gtruth = (*gt)[0];
+        weight = gtruth.fweight;
+      }
+        
+      else
+        mf::LogWarning("CAFMaker") << "No GTruth.";
+
+      sr.pot = weight;
+
       for( int p = 0; p < truth[i].NParticles(); p++ ) {
         if( truth[i].GetParticle(p).StatusCode() == genie::kIStHadronInTheNucleus ) {
 
@@ -322,9 +348,11 @@ namespace caf {
       // Reweighting variables
 
       // Consider
-      //systtools::ScrubUnityEventResponses(er);
+      // systtools::ScrubUnityEventResponses(er);
 
       sr.total_xsSyst_cv_wgt = 1;
+      sr.xsSyst_wgt = fDefaultSystWgt;
+      sr.cvwgt = fDefaultCvWgt;
 
       for(auto &sp : fSystProviders ) {
         std::unique_ptr<systtools::EventAndCVResponse> syst_resp = sp->GetEventVariationAndCVResponse(evt);
@@ -342,12 +370,17 @@ namespace caf {
         for(const std::vector<systtools::VarAndCVResponse>& resp: *syst_resp){
           for(const systtools::VarAndCVResponse& it: resp){
             // Need begin/end to convert double to float
-            sr.xsSyst_wgt.emplace_back(it.responses.begin(), it.responses.end());
-            sr.cvwgt.push_back(it.CV_response);
+            // sr.xsSyst_wgt.emplace_back(it.responses.begin(), it.responses.end());
+            sr.xsSyst_wgt[it.pid] = std::vector<float>(it.responses.begin(), it.responses.end());
+            sr.cvwgt[it.pid] = it.CV_response;
             sr.total_xsSyst_cv_wgt *= it.CV_response;
+            // std::cout << "ID: " << it.pid << std::endl;
           }
+          // std::cout << sp->GetFullyQualifiedName() << " -> SIZE: " << resp.size() << std::endl;
+          
         }
       }
+      std::cout << "LENGTH SYSTEMATICS RESPONSE: " << sr.xsSyst_wgt.size() << std::endl;
     } // loop through MC truth i
   }
 
@@ -358,6 +391,106 @@ namespace caf {
     if( pots ) meta_pot += pots->totpot;
   }
 
+  // //------------------------------------------------------------------------------
+
+  // genie::EventRecord CAFMaker::buildEventRecord(art::Event const & evt){
+  //   //Getting GTruth
+  //   auto gt = evt.getHandle< std::vector<simb::GTruth> >("generator");
+  //   if(!gt){
+  //     std::cout << "[ERROR] Cannot build GENIEEventRecord without an available simb::GTruth" << std::endl;
+  //     abort();
+  //   }
+
+  //   auto mct = evt.getHandle< std::vector<simb::MCTruth> >("generator");
+  //   if(!mct) {
+  //     std::cout << "[ERROR] Cannot build GENIEEventRecord without an available simb::MCTruth" << std::endl;
+  //     abort();
+  //   }
+
+  //   auto gtruth = (*gt)[0];
+  //   auto mctruth = (*mct)[0];
+
+  //   genie::EventRecord rec;
+
+  //   ///////////////////////////////////
+  //   ////////Event info//////////
+  //   ///////////////////////////////////
+  //   rec.SetWeight(gtruth.fweight);
+  //   rec.SetProbability(gtruth.fprobability);
+  //   rec.SetXSec(gtruth.fXsec);
+  //   rec.SetDiffXSec(gtruth.fDiffXsec, (genie::KinePhaseSpace_t) gtruth.fGPhaseSpace);
+  //   rec.SetVertex(gtruth.fVertex);
+
+  //   ///////////////////////////////////
+  //   ////////interactions info//////////
+  //   ///////////////////////////////////
+
+  //   //process info
+  //   genie::Interaction *inter = new genie::Interaction;
+  //   genie::ProcessInfo proc_info;
+  //   genie::ScatteringType_t gscty = (genie::ScatteringType_t)gtruth.fGscatter;
+  //   genie::InteractionType_t ginty = (genie::InteractionType_t)gtruth.fGint;
+  //   proc_info.Set(gscty,ginty);
+  //   inter->SetProcInfo(proc_info);
+
+  //   //true reaction information and byproducts
+  //   //(PRE FSI)
+  //   genie::XclsTag exclTag;
+  //   if(gtruth.fIsCharm){
+  //     exclTag.SetCharm(gtruth.fCharmHadronPdg);
+  //   }
+  //   if(gtruth.fIsStrange){
+  //     exclTag.SetStrange(gtruth.fStrangeHadronPdg);
+  //   }
+  //   exclTag.SetResonance((genie::Resonance_t) gtruth.fResNum);
+  //   exclTag.SetDecayMode(gtruth.fDecayMode);
+  //   exclTag.SetNPions(gtruth.fNumPiPlus, gtruth.fNumPi0, gtruth.fNumPiMinus);
+  //   exclTag.SetNNucleons(gtruth.fNumProton, gtruth.fNumNeutron);
+
+  //   #if __GENIE_RELEASE_CODE__ >= GRELCODE(3,2,0)
+  //     exclTag.SetNSingleGammas(gtruth.fNumSingleGammas);
+  //     exclTag.SetNRhos(gtruth.fNumRhoPlus, gtruth.fNumRho0, gtruth.fNumRhoMinus);
+  //     exclTag.SetFinalQuark(gtruth.fFinalQuarkPdg);
+  //     exclTag.SetFinalLeptongtruth.fFinalLeptonPdg);
+  //   #endif
+  //   inter->SetExclTag(exclTag);
+
+  //   //Kinematics info
+  //   genie::Kinematics kine;
+  //   kine.Setx(gtruth.fgX, true);
+  //   kine.Sety(gtruth.fgY, true);
+  //   kine.Sett(gtruth.fgT, true);
+  //   kine.SetW(gtruth.fgW, true);
+  //   kine.SetQ2(gtruth.fgQ2, true);
+  //   kine.Setq2(gtruth.fgq2, true);
+  //   kine.SetHadSystP4(gtruth.fFShadSystP4);
+  //   // simb::MCNeutrino nu = truth.GetNeutrino();
+  //   // simb::MCParticle lep = nu.Lepton();
+  //   // gkin.SetFSLeptonP4(lep.Px(), lep.Py(), lep.Pz(), lep.E());
+  //   // gkin.SetHadSystP4(gtruth.fFShadSystP4.Px(), gtruth.fFShadSystP4.Py(), gtruth.fFShadSystP4.Pz(), gtruth.fFShadSystP4.E());
+  //   inter->SetKine(kine);
+    
+  //   //Initial State info
+  //   genie::InitialState *initState = inter->InitStatePtr();
+  //   initState->SetProbePdg(gtruth.fProbePDG);
+  //   initState->SetProbeP4(gtruth.fProbeP4);
+  //   initState->SetTgtP4(gtruth.fTgtP4);
+
+  //   //Target info
+  //   genie::Target* tgt = p_ginstate->TgtPtr();
+  //   tgt->SetId(gtruth.ftgtPDG);
+  //   tgt->SetHitNucP4(gtruth.fHitNucP4);
+  //   tgt->SetHitNucPosition(gtruth.fHitNucPos);
+  //   tgt->SetHitQrkPdg(struckQuark);
+  //   tgt->SetHitSeaQrk(gtruth.fIsSeaQuark);
+
+  //   rec.AttachSummary(inter);
+
+  //   //===============================================
+
+  //   return rec;
+  // }
+
   //------------------------------------------------------------------------------
   void CAFMaker::analyze(art::Event const & evt)
   {
@@ -365,7 +498,11 @@ namespace caf {
 
     if(fTree){
       caf::StandardRecord* psr = &sr;
+      std::vector<float>* cvwgt = &(sr.cvwgt);
+      std::vector<std::vector<float>>* xsSyst_wgt = &(sr.xsSyst_wgt);
       fTree->SetBranchAddress("rec", &psr);
+      fTree->SetBranchAddress("cvwgt", &cvwgt);
+      fTree->SetBranchAddress("xsSyst_wgt", &xsSyst_wgt);
     }
 
     auto pidin = evt.getHandle<dunemva::MVASelectPID>(fMVASelectLabel);
@@ -384,6 +521,9 @@ namespace caf {
     meta_run = sr.run;
     meta_subrun = sr.subrun;
 
+    sr.CVNResultNue = -999;
+    sr.CVNResultNumu = -999;
+
     if( !pidin.failedToGet() ) {
       sr.mvaresult = pidin->pid;
 
@@ -398,6 +538,17 @@ namespace caf {
       sr.RecoMethodNumu  = ereconumuin->recoMethodUsed;
       sr.LongestTrackContNumu = ereconumuin->longestTrackContained;
       sr.TrackMomMethodNumu   = ereconumuin->trackMomMethod;
+
+      if(ereconuein->fLepLorentzVector.P() > 0){
+        sr.CVNResultNue = acos(ereconuein->fLepLorentzVector.Pz()/ereconuein->fLepLorentzVector.P());
+      }
+      if(ereconumuin->fLepLorentzVector.P() > 0){
+        sr.CVNResultNumu = acos(ereconumuin->fLepLorentzVector.Pz()/ereconumuin->fLepLorentzVector.P());
+      }
+      
+
+      std::cout << "nue -> Pz: " << ereconuein->fLepLorentzVector.Pz() << " ; P: " << ereconuein->fLepLorentzVector.P() << " ; angle: " << sr.CVNResultNue << std::endl;
+      std::cout << "numu -> Pz: " << ereconumuin->fLepLorentzVector.Pz() << " ; P: " << ereconumuin->fLepLorentzVector.P() << " ; angle: " << sr.CVNResultNumu << std::endl;
     }
 
     if( !pidinnue.failedToGet() ) {
@@ -412,7 +563,7 @@ namespace caf {
       //using i = cvn::Interaction;
       //if(cvnin->empty() || (*cvnin)[0].fOutput.size() <= i::kNutauOther){
       if(cvnin->empty()){
-        sr.CVNResultIsAntineutrino = sr.CVNResultNue = sr.CVNResultNumu = sr.CVNResultNutau = sr.CVNResultNC = \
+        sr.CVNResultIsAntineutrino = sr.CVNResultNutau = sr.CVNResultNC = \
         sr.CVNResult0Protons = sr.CVNResult1Protons = sr.CVNResult2Protons = sr.CVNResultNProtons = \
         sr.CVNResult0Pions = sr.CVNResult1Pions = sr.CVNResult2Pions = sr.CVNResultNPions = \
         sr.CVNResult0Pizeros = sr.CVNResult1Pizeros = sr.CVNResult2Pizeros = sr.CVNResultNPizeros = \
