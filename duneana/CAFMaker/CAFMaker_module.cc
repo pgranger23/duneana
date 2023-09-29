@@ -42,6 +42,7 @@
 #include "systematicstools/interface/ISystProviderTool.hh"
 #include "systematicstools/utility/ParameterAndProviderConfigurationUtility.hh"
 #include "systematicstools/utility/exceptions.hh"
+#include "nugen/EventGeneratorBase/GENIE/GENIE2ART.h"
 //#include "systematicstools/utility/md5.hh"
 
 // root
@@ -79,8 +80,8 @@ namespace caf {
       void FillTruthInfo(caf::StandardRecord& sr,
                          std::vector<simb::MCTruth> const& truth,
                          std::vector<simb::MCFlux> const& flux,
-                         art::Event const& evt) const;
-      genie::EventRecord buildEventRecord(art::Event const & evt);
+                         art::Event const& evt);
+      // genie::EventRecord buildEventRecord(art::Event const & evt);
 
       std::string fMVASelectLabel;
       std::string fMVASelectNueLabel;
@@ -107,6 +108,7 @@ namespace caf {
       systtools::provider_list_t fSystProviders;
       std::vector<std::vector<float>> fDefaultSystWgt;
       std::vector<float> fDefaultCvWgt;
+      genie::EventRecord *genie_rec = nullptr;
 
   }; // class CAFMaker
 
@@ -170,6 +172,7 @@ namespace caf {
       fTree->Branch("rec", &rec);
       fTree->Branch("cvwgt", &cvwgt);
       fTree->Branch("xsSyst_wgt", &xsSyst_wgt);
+      fTree->Branch("genie_rec", &genie_rec);
     }
 
     if(fFlatFile){
@@ -233,7 +236,7 @@ namespace caf {
   void CAFMaker::FillTruthInfo(caf::StandardRecord& sr,
                                std::vector<simb::MCTruth> const& truth,
                                std::vector<simb::MCFlux> const& flux,
-                               art::Event const& evt) const
+                               art::Event const& evt)
   {
     for(size_t i=0; i<truth.size(); i++){
 
@@ -294,6 +297,7 @@ namespace caf {
       if ( gt ){
         auto gtruth = (*gt)[0];
         weight = gtruth.fweight;
+        genie_rec = evgb::RetrieveGHEP(truth[0], gtruth);
       }
         
       else
@@ -503,6 +507,7 @@ namespace caf {
       fTree->SetBranchAddress("rec", &psr);
       fTree->SetBranchAddress("cvwgt", &cvwgt);
       fTree->SetBranchAddress("xsSyst_wgt", &xsSyst_wgt);
+      fTree->SetBranchAddress("genie_rec", &genie_rec);
     }
 
     auto pidin = evt.getHandle<dunemva::MVASelectPID>(fMVASelectLabel);
