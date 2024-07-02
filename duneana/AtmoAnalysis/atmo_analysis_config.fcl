@@ -1,0 +1,20 @@
+BEGIN_PROLOG
+
+atmoAnalysis:
+{
+   module_type:		          "AtmoAnalysis"
+   PandoraNuVertexModuleLabel: "pandora"
+   DirectionRecoLabelNuMu:     "anglereconumu"
+   DirectionRecoLabelNuE:      "anglereconue"
+   DirectionRecoLabelNuMuPfps: "anglereconumupfps"
+   DirectionRecoLabelNuEPfps:  "anglereconuepfps"
+   EnergyRecoNuELabel:         "energyrecnue"
+   EnergyRecoNuMuLabel:        "energyrecnumu"
+   EnergyRecoNuMuMCSLabel:     "energyrecnumumcs"
+   EnergyRecoNuMuRangeLabel:   "energyrecnumurange"
+   EnergyRecoNCLabel:          "energyrecnc"
+   CVNLabel:	                "cvneva:cvnresult"
+   MCTruthLabel:	             "generator"
+}
+
+END_PROLOG
