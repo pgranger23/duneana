@@ -569,7 +569,7 @@ void DAQSimAna::analyze(art::Event const & evt)
     HitChan.push_back(ThisHit.Channel());
     HitTime.push_back(ThisHit.PeakTime());
     HitRMS .push_back(ThisHit.RMS());
-    HitSADC.push_back(ThisHit.SummedADC());
+    HitSADC.push_back(ThisHit.ROISummedADC());
     HitInt .push_back(ThisHit.Integral());
     HitPeak.push_back(ThisHit.PeakAmplitude());
     GenType.push_back(ThisPType);
