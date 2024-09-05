@@ -14,6 +14,7 @@ atmoAnalysis:
    EnergyRecoNuMuRangeLabel:   "energyrecnumurange"
    EnergyRecoNCLabel:          "energyrecnc"
    CVNLabel:	                "cvneva:cvnresult"
+   EdepLabel:                  "largeant:LArG4DetectorServicevolTPCActiveInner"
    MCTruthLabel:	             "generator"
 }
 

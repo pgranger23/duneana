@@ -29,6 +29,7 @@
 #include "larcore/Geometry/Geometry.h"
 #include "lardata/ArtDataHelper/TrackUtils.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
+#include "lardataobj/Simulation/SimEnergyDeposit.h"
 #include "larsim/Utils/TruthMatchUtils.h"
 #include "larsim/MCCheater/BackTrackerService.h"
 
@@ -120,6 +121,7 @@ private:
   double fErecNuMuRange;
   double fErecNuMuMCS;
   double fErecNC;
+  double fVisibleEnergy;
 
   std::string fMCTruthLabel;
   std::string fPandoraNuVertexModuleLabel;
@@ -133,6 +135,7 @@ private:
   std::string fEnergyRecoNuMuRangeLabel;
   std::string fEnergyRecoNCLabel;
   std::string fCVNLabel;
+  std::string fEdepLabel;
 
   const geo::Geometry* fGeom;
 };
@@ -156,6 +159,7 @@ test::atmoAnalysis::atmoAnalysis(fhicl::ParameterSet const& p)
   fEnergyRecoNCLabel = p.get<std::string>("EnergyRecoNCLabel");
 
   fCVNLabel = p.get<std::string>("CVNLabel");
+  fEdepLabel = p.get<std::string>("EdepLabel");
   fGeom    = &*art::ServiceHandle<geo::Geometry>();
 } 
 
@@ -310,6 +314,17 @@ void test::atmoAnalysis::analyze(art::Event const& evt)
         else{
           fErecNC = ereco->fNuLorentzVector.E();
         }
+
+        //Compute visible energy
+        fVisibleEnergy = 0;
+        auto theseProds = evt.getHandle<std::vector<sim::SimEnergyDeposit>>(fEdepLabel);
+        if(theseProds.isValid()){
+          for(const art::Ptr<sim::SimEnergyDeposit> &edep edep : theseProds){
+            fVisibleEnergy += edep.Energy();
+          }
+        }
+        else{
+          mf::LogWarning("CAFMaker") << "No SimEnergyDeposit found with label '" << fEdepLabel << "'";
       }
     }
 
@@ -347,6 +362,7 @@ void test::atmoAnalysis::beginJob()
   fTree->Branch("ErecNuMuRange", &fErecNuMuRange);
   fTree->Branch("ErecNuMuMCS", &fErecNuMuMCS);
   fTree->Branch("ErecNC", &fErecNC);
+  fTree->Branch("VisibleEnergy", &fVisibleEnergy);
   fTree->Branch("DirectionRecNuE_x", &fDirectionRecNuE_x);
   fTree->Branch("DirectionRecNuE_y", &fDirectionRecNuE_y);
   fTree->Branch("DirectionRecNuE_z", &fDirectionRecNuE_z);
