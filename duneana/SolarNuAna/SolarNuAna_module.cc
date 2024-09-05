@@ -716,9 +716,9 @@ namespace solar
           {
             ThisOphitPurity /= int(ThisOpHitTrackIds.size());
           }
-          ThisOpFlashPur += ThisOphitPurity;
+          ThisOpFlashPur += ThisOphitPurity * OpHit.PE();
           auto OpHitXYZ = geo->OpDetGeoFromOpChannel(OpHit.OpChannel()).GetCenter();
-          SOpHitPur.push_back(ThisOphitPurity / int(ThisOpHitTrackIds.size()));
+          SOpHitPur.push_back(ThisOphitPurity);
           SOpHitChannel.push_back(OpHit.OpChannel());
           SOpHitT.push_back(OpHit.PeakTime());
           SOpHitPE.push_back(OpHit.PE());
@@ -734,7 +734,7 @@ namespace solar
         }
         else
         {
-          ThisOpFlashPur /= int(OpHitVec[i].size());
+          ThisOpFlashPur /= TheFlash.PE;
         }
         OpFlashPur.push_back(ThisOpFlashPur);
         if (abs(TheFlash.Time) < 10)
@@ -1218,7 +1218,7 @@ namespace solar
       std::string sResultColor = "white";
       float OpFlashResidual = 0;
       float MatchedOpFlashResidual = 1e6;
-      float MatchedOpFlashX = 1e6;
+      float MatchedOpFlashX = -1e6;
 
       if (MVecCharge[i] < fMinClusterCharge)
       {
