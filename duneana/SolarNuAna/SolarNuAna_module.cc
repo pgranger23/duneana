@@ -412,7 +412,7 @@ namespace solar
       fSolarNuAnaTree->Branch("AdjOpFlashTime", &MAdjFlashTime);         // Adj. flash' time [ticks]
       fSolarNuAnaTree->Branch("AdjOpFlashNHit", &MAdjFlashNHit);         // Adj. flash' #hits
       fSolarNuAnaTree->Branch("AdjOpFlashMaxPE", &MAdjFlashMaxPE);       // Adj. flash' max #PE [ADC*ticks]
-      fSolarNuAnaTree->Branch("AdjOpFlashRecoY", &MAdjFlashRecoX);       // Adj. flash' reco X [cm]
+      fSolarNuAnaTree->Branch("AdjOpFlashRecoX", &MAdjFlashRecoX);       // Adj. flash' reco X [cm]
       fSolarNuAnaTree->Branch("AdjOpFlashRecoY", &MAdjFlashRecoY);       // Adj. flash' reco Y [cm]
       fSolarNuAnaTree->Branch("AdjOpFlashRecoZ", &MAdjFlashRecoZ);       // Adj. flash' reco Z [cm]
       fSolarNuAnaTree->Branch("AdjOpFlashResidual", &MAdjFlashResidual); // Adj. flash' residual wrt. cluster
@@ -1403,7 +1403,7 @@ namespace solar
           solaraux->PrintInColor(sFlashMatching, SolarAuxUtils::GetColor(sResultColor), "Debug");
           adjophits->FlashMatchResidual(OpFlashResidual, OpHitVec[j], MAdjFlashX, double(MVecRecY[i]), double(MVecRecZ[i]));
           // If the residual is smaller than the minimum residual, update the minimum residual and the matched flash
-          if (OpFlashResidual < MatchedOpFlashResidual || MatchedOpFlashResidual == -1e6)
+          if (OpFlashResidual < MatchedOpFlashResidual)
           {
             MFlashR = OpFlashR;
             MFlashPE = OpFlashPE[j];
@@ -1420,7 +1420,7 @@ namespace solar
 
             // Create an output string with the flash information
             sFlashReco = "*** Matched flash: \n - Purity " + SolarAuxUtils::str(OpFlashPur[j]) +
-                         " NHit " + SolarAuxUtils::str(OpFlashNHit[j]) +
+                         " #Hits " + SolarAuxUtils::str(OpFlashNHit[j]) +
                          " PE " + SolarAuxUtils::str(OpFlashPE[j]) +
                          " MaxPE " + SolarAuxUtils::str(OpFlashMaxPE[j]) + "\n" +
                          " Reco X,Y,Z (" + SolarAuxUtils::str(MAdjFlashX) + ", " + SolarAuxUtils::str(OpFlashY[j]) + ", " + SolarAuxUtils::str(OpFlashZ[j]) + ")" + "\n" +
@@ -1574,6 +1574,7 @@ namespace solar
     MFlashPur = -1e6;
     MFlashSTD = -1e6;
     MFlashTime = -1e6;
+    MFlashR = -1e6;
     MFlashRecoX = -1e6;
     MFlashRecoY = -1e6;
     MFlashRecoZ = -1e6;
