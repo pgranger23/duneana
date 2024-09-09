@@ -120,6 +120,8 @@ namespace solar
 
   void AdjOpHitsUtils::CalcAdjOpHits(const std::vector<art::Ptr<recob::OpHit>> &OpHitVector, std::vector<std::vector<art::Ptr<recob::OpHit>>> &OpHitClusters, std::vector<std::vector<int>> &OpHitClusterIdx)
   {
+    // This is the low energy flash (hit clustering) algorithm aka flip-flop. It is based on the idea that the hits in the same flash are close in time and space and follow a 1/r² signal decay.
+
     // Initialize the vector of OpHitClusters and the vector of indices
     OpHitClusters.clear();
     OpHitClusterIdx.clear();
