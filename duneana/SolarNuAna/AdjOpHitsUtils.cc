@@ -292,6 +292,12 @@ namespace solar
 
   void AdjOpHitsUtils::FlashMatchResidual(float &Residual, std::vector<art::Ptr<recob::OpHit>> Hits, double x, double y, double z)
   {
+    if (Hits.size() == 0)
+    {
+      Residual = 1e6;
+      SolarAuxUtils::PrintInColor("Failed Residual Evaluation: Empty Flash!", SolarAuxUtils::GetColor("yellow"), "Error");
+      return;
+    }
     // Initialize variables
     Residual = 0;
     float PE = 0;
@@ -314,8 +320,8 @@ namespace solar
     float firstHitAngle = atan2(sqrt(firstHitDistSq), abs(x));
 
     // Calculate the expected PE value for the reference point based on the first hit PE and the squared distance + angle
-    float refHitPE = firstHitPE * (pow(x, 2) + firstHitDistSq) / pow(x, 2) / cos(firstHitAngle);
-    // float refHitPE = firstHitPE * (pow(x, 2) + firstHitDistSq) / pow(x, 2);
+    // float refHitPE = firstHitPE * (pow(x, 2) + firstHitDistSq) / pow(x, 2) / cos(firstHitAngle);
+    float refHitPE = firstHitPE * (pow(x, 2) + firstHitDistSq) / pow(x, 2);
 
     // Loop over all OpHits in the flash and compute the squared distance to the reference point
     for (const auto &hit : Hits)
@@ -323,13 +329,12 @@ namespace solar
       double hitY = geo->OpDetGeoFromOpChannel(hit->OpChannel()).GetCenter().Y();
       double hitZ = geo->OpDetGeoFromOpChannel(hit->OpChannel()).GetCenter().Z();
 
-      // Make a residual calculation of the PE distribution in the OpHits of the flash wrt the charge deposition in the TPC.
-      float hitDistSq = pow(hitY - y, 2) + pow(hitZ - z, 2);
-      float hitAngle = atan2(sqrt(hitDistSq), abs(x));
-
       // The expected distribution of PE corresponds to a decrease of 1/r² with the distance from the flash center. Between adjacent OpHits, the expected decrease in charge has the form r²/(r²+d²)
-      float predPE = refHitPE * cos(hitAngle) * pow(x, 2) / (pow(x, 2) + hitDistSq);
-      // float predPE = refHitPE * pow(x, 2) / (pow(x, 2) + hitDistSq);
+      float hitDistSq = pow(hitY - y, 2) + pow(hitZ - z, 2);
+      // float hitAngle = atan2(sqrt(hitDistSq), abs(x));
+      // float predPE = refHitPE * cos(hitAngle) * pow(x, 2) / (pow(x, 2) + hitDistSq);
+      float predPE = refHitPE * pow(x, 2) / (pow(x, 2) + hitDistSq);
+
       Residual += pow(hit->PE() - predPE, 2);
       PE += hit->PE();
     }
