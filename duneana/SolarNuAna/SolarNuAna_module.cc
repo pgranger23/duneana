@@ -86,7 +86,7 @@ namespace solar
     int fDetectorSizeX, fDetectorSizeY, fDetectorSizeZ, fDetectorDriftTime, fClusterAlgoAdjChannel, fClusterInd0MatchTime, fClusterInd1MatchTime, fClusterPreselectionNHit;
     float fClusterMatchTime, fAdjClusterRad, fMinClusterCharge, fClusterMatchCharge, fAdjOpFlashY, fAdjOpFlashZ, fAdjOpFlashTime, fAdjOpFlashMaxPERatioCut, fAdjOpFlashMinPECut, fClusterMatchNHit, fClusterAlgoTime;
     std::vector<std::string> fLabels;
-    float fOpFlashAlgoTime, fOpFlashAlgoRad, fOpFlashAlgoPE, fOpFlashAlgoTriggerPE;
+    float fOpFlashAlgoTime, fOpFlashAlgoRad, fOpFlashAlgoPE, fOpFlashAlgoTriggerPE, fOpFlashAlgoHotVertexThld;
     bool fClusterPreselectionTrack, fClusterPreselectionPrimary, fGenerateAdjOpFlash, fSaveMarleyEDep, fSaveSignalOpHits, fSaveOpFlashInfo;
     // bool fOpFlashAlgoCentroid;
 
@@ -182,6 +182,7 @@ namespace solar
     fOpFlashAlgoRad = p.get<double>("OpFlashAlgoRad");
     fOpFlashAlgoPE = p.get<float>("OpFlashAlgoPE");
     fOpFlashAlgoTriggerPE = p.get<float>("OpFlashAlgoTriggerPE");
+    fOpFlashAlgoHotVertexThld = p.get<float>("OpFlashAlgoHotVertexThld");
     // fOpFlashAlgoCentroid = p.get<bool>("OpFlashAlgoCentroid");
     fAdjOpFlashTime = p.get<float>("AdjOpFlashTime");
     fAdjOpFlashY = p.get<float>("AdjOpFlashY");
@@ -231,6 +232,7 @@ namespace solar
     fConfigTree->Branch("OpFlashAlgoRad", &fOpFlashAlgoRad);
     fConfigTree->Branch("OpFlashAlgoPE", &fOpFlashAlgoPE);
     fConfigTree->Branch("OpFlashAlgoTriggerPE", &fOpFlashAlgoTriggerPE);
+    fConfigTree->Branch("OpFlashAlgoHotVertexThld", &fOpFlashAlgoHotVertexThld);
     // fConfigTree->Branch("OpFlashAlgoCentroid", &fOpFlashAlgoCentroid);
     fConfigTree->Branch("AdjOpFlashTime", &fAdjOpFlashTime);
     fConfigTree->Branch("AdjOpFlashY", &fAdjOpFlashY);
@@ -412,7 +414,7 @@ namespace solar
       fSolarNuAnaTree->Branch("AdjOpFlashTime", &MAdjFlashTime);         // Adj. flash' time [ticks]
       fSolarNuAnaTree->Branch("AdjOpFlashNHit", &MAdjFlashNHit);         // Adj. flash' #hits
       fSolarNuAnaTree->Branch("AdjOpFlashMaxPE", &MAdjFlashMaxPE);       // Adj. flash' max #PE [ADC*ticks]
-      fSolarNuAnaTree->Branch("AdjOpFlashRecoY", &MAdjFlashRecoX);       // Adj. flash' reco X [cm]
+      fSolarNuAnaTree->Branch("AdjOpFlashRecoX", &MAdjFlashRecoX);       // Adj. flash' reco X [cm]
       fSolarNuAnaTree->Branch("AdjOpFlashRecoY", &MAdjFlashRecoY);       // Adj. flash' reco Y [cm]
       fSolarNuAnaTree->Branch("AdjOpFlashRecoZ", &MAdjFlashRecoZ);       // Adj. flash' reco Z [cm]
       fSolarNuAnaTree->Branch("AdjOpFlashResidual", &MAdjFlashResidual); // Adj. flash' residual wrt. cluster
@@ -716,9 +718,9 @@ namespace solar
           {
             ThisOphitPurity /= int(ThisOpHitTrackIds.size());
           }
-          ThisOpFlashPur += ThisOphitPurity;
+          ThisOpFlashPur += ThisOphitPurity * OpHit.PE();
           auto OpHitXYZ = geo->OpDetGeoFromOpChannel(OpHit.OpChannel()).GetCenter();
-          SOpHitPur.push_back(ThisOphitPurity / int(ThisOpHitTrackIds.size()));
+          SOpHitPur.push_back(ThisOphitPurity);
           SOpHitChannel.push_back(OpHit.OpChannel());
           SOpHitT.push_back(OpHit.PeakTime());
           SOpHitPE.push_back(OpHit.PE());
@@ -734,7 +736,7 @@ namespace solar
         }
         else
         {
-          ThisOpFlashPur /= int(OpHitVec[i].size());
+          ThisOpFlashPur /= TheFlash.PE;
         }
         OpFlashPur.push_back(ThisOpFlashPur);
         if (abs(TheFlash.Time) < 10)
@@ -1218,7 +1220,7 @@ namespace solar
       std::string sResultColor = "white";
       float OpFlashResidual = 0;
       float MatchedOpFlashResidual = 1e6;
-      float MatchedOpFlashX = 1e6;
+      float MatchedOpFlashX = -1e6;
 
       if (MVecCharge[i] < fMinClusterCharge)
       {
@@ -1403,7 +1405,7 @@ namespace solar
           solaraux->PrintInColor(sFlashMatching, SolarAuxUtils::GetColor(sResultColor), "Debug");
           adjophits->FlashMatchResidual(OpFlashResidual, OpHitVec[j], MAdjFlashX, double(MVecRecY[i]), double(MVecRecZ[i]));
           // If the residual is smaller than the minimum residual, update the minimum residual and the matched flash
-          if (OpFlashResidual < MatchedOpFlashResidual || MatchedOpFlashResidual == -1e6)
+          if (OpFlashResidual < MatchedOpFlashResidual)
           {
             MFlashR = OpFlashR;
             MFlashPE = OpFlashPE[j];
@@ -1420,7 +1422,7 @@ namespace solar
 
             // Create an output string with the flash information
             sFlashReco = "*** Matched flash: \n - Purity " + SolarAuxUtils::str(OpFlashPur[j]) +
-                         " NHit " + SolarAuxUtils::str(OpFlashNHit[j]) +
+                         " #Hits " + SolarAuxUtils::str(OpFlashNHit[j]) +
                          " PE " + SolarAuxUtils::str(OpFlashPE[j]) +
                          " MaxPE " + SolarAuxUtils::str(OpFlashMaxPE[j]) + "\n" +
                          " Reco X,Y,Z (" + SolarAuxUtils::str(MAdjFlashX) + ", " + SolarAuxUtils::str(OpFlashY[j]) + ", " + SolarAuxUtils::str(OpFlashZ[j]) + ")" + "\n" +
@@ -1574,6 +1576,7 @@ namespace solar
     MFlashPur = -1e6;
     MFlashSTD = -1e6;
     MFlashTime = -1e6;
+    MFlashR = -1e6;
     MFlashRecoX = -1e6;
     MFlashRecoY = -1e6;
     MFlashRecoZ = -1e6;
@@ -1660,7 +1663,6 @@ namespace solar
     else
       return false;
   }
-
 } // namespace solar
 
 DEFINE_ART_MODULE(solar::SolarNuAna)
