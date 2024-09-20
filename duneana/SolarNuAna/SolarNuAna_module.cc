@@ -79,7 +79,7 @@ namespace solar
     void FillMyMaps(std::map<int, simb::MCParticle> &MyMap, art::FindManyP<simb::MCParticle> Assn, art::ValidHandle<std::vector<simb::MCTruth>> Hand);
 
     // --- Our fcl parameter labels for the modules that made the data products
-    std::string fRawDigitLabel, fHitLabel, fTrackLabel, fOpHitLabel, fOpFlashLabel, fGEANTLabel;
+    std::string fHitLabel, fTrackLabel, fOpHitLabel, fOpFlashLabel, fGEANTLabel;
 
     // --- Input settings imported from the fcl
     std::string fGeometry;
@@ -154,7 +154,6 @@ namespace solar
   void SolarNuAna::reconfigure(fhicl::ParameterSet const &p)
   {
     fLabels = p.get<std::vector<std::string>>("ParticleLabelVector");
-    fRawDigitLabel = p.get<std::string>("RawDigitLabel");
     fHitLabel = p.get<std::string>("HitLabel");
     fOpFlashLabel = p.get<std::string>("OpFlashLabel");
     fOpHitLabel = p.get<std::string>("OpHitLabel");
@@ -204,12 +203,11 @@ namespace solar
     fSolarNuAnaTree = tfs->make<TTree>("SolarNuAnaTree", "Solar Ana Tree");
 
     // Larsoft Config info.
-    fConfigTree->Branch("RawDigitLabel", &fRawDigitLabel);
-    fConfigTree->Branch("HitLabel", &fHitLabel);
-    fConfigTree->Branch("OpFlashLabel", &fOpFlashLabel);
-    fConfigTree->Branch("OpHitLabel", &fOpHitLabel);
-    fConfigTree->Branch("TrackLabel", &fTrackLabel);
     fConfigTree->Branch("GEANT4Label", &fGEANTLabel);
+    fConfigTree->Branch("HitLabel", &fHitLabel);
+    fConfigTree->Branch("TrackLabel", &fTrackLabel);
+    fConfigTree->Branch("OpHitLabel", &fOpHitLabel);
+    fConfigTree->Branch("OpFlashLabel", &fOpFlashLabel);
     fConfigTree->Branch("Geometry", &fGeometry);
     fConfigTree->Branch("DetectorSizeX", &fDetectorSizeX);
     fConfigTree->Branch("DetectorSizeY", &fDetectorSizeY);
