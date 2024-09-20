@@ -219,6 +219,7 @@ namespace solar
             break;
           }
           AdjHitVec.push_back(adjHit);
+          AdjHitIdx.push_back(*it2);
           ClusteredHits[*it2] = true;
           sOpHitClustering += "Adding hit: PE " + SolarAuxUtils::str(adjHit->PE()) + " CH " + SolarAuxUtils::str(adjHit->OpChannel()) + " Time " + SolarAuxUtils::str(adjHit->PeakTime()) + "\n";
         }
@@ -279,6 +280,7 @@ namespace solar
             break;
           }
           AdjHitVec.push_back(adjHit);
+          AdjHitIdx.push_back(*it4);
           ClusteredHits[*it4] = true;
           sOpHitClustering += "Adding hit: PE " + SolarAuxUtils::str(adjHit->PE()) + " CH " + SolarAuxUtils::str(adjHit->OpChannel()) + " Time " + SolarAuxUtils::str(adjHit->PeakTime()) + "\n";
         }
@@ -287,8 +289,8 @@ namespace solar
       if (main_hit && int(AdjHitVec.size()) >= fOpFlashAlgoNHit)
       {
         // Store the original indices of the clustered hits
-        OpHitClusterIdx.push_back(AdjHitIdx);
         OpHitClusters.push_back(std::move(AdjHitVec));
+        OpHitClusterIdx.push_back(std::move(AdjHitIdx));
         sOpHitClustering += "Cluster size: " + SolarAuxUtils::str(int(OpHitClusters.back().size())) + "\n";
         SolarAuxUtils::PrintInColor(sOpHitClustering, SolarAuxUtils::GetColor("green"), "Debug");
       }
