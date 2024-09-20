@@ -763,13 +763,13 @@ namespace solar
       {
         recob::OpFlash TheFlash = *OpFlashList[i];
         std::vector<art::Ptr<recob::OpHit>> MatchedHits = OpAssns.at(i);
-        mf::LogDebug("SolarNuAna") << "Assigning OpHit to Flash";
-        double FlashStdDev = 0.0, varY = 0.0, varZ = 0.0, TotalFlashPE = 0, MaxOpHitPE = 0, FlashTime = 0;
         int NMatchedHits = MatchedHits.size();
+        double FlashStdDev = 0.0, varY = 0.0, varZ = 0.0, TotalFlashPE = 0, MaxOpHitPE = 0, FlashTime = 0;
 
         for (int j = 0; j < NMatchedHits; j++)
         { // Loop over OpHits in the flash
           recob::OpHit OpHit = *MatchedHits[j];
+          mf::LogDebug("SolarNuAna") << "Assigning OpHit to Flash";
           const std::vector<int> ThisOpHitTrackIds = pbt->OpHitToTrackIds(OpHit);
           float ThisOphitPurity = 0;
           for (auto const &ThisOpHitTrackId : ThisOpHitTrackIds)
@@ -834,7 +834,7 @@ namespace solar
           mf::LogDebug("SolarNuAna") << "OpFlash PE " << TheFlash.TotalPE() << " with purity " << ThisOpFlashPur << " time " << TheFlash.Time();
           sOpFlashTruth += "OpFlash PE " + SolarAuxUtils::str(TheFlash.TotalPE()) + " with purity " + SolarAuxUtils::str(ThisOpFlashPur) + " time " + SolarAuxUtils::str(TheFlash.Time()) + " vertex (" + SolarAuxUtils::str(TheFlash.YCenter()) + ", " + SolarAuxUtils::str(TheFlash.ZCenter()) + ")\n";
           sOpFlashTruth += "\t*** 1st Sanity check: Ratio " + SolarAuxUtils::str(MaxOpHitPE / TotalFlashPE) + " <= " + SolarAuxUtils::str(fAdjOpFlashMaxPERatioCut) + " && Total PE " + SolarAuxUtils::str(TotalFlashPE) + " >= " + SolarAuxUtils::str(fAdjOpFlashMinPECut) + "\n";
-          sOpFlashTruth += "\t*** 2nd Sanity check: #OpHits " + SolarAuxUtils::str(int(MatchedHits.size())) + " >= " + SolarAuxUtils::str(int(TheFlash.PEs().size())) + "\n";
+          sOpFlashTruth += "\t*** 2nd Sanity check: #OpHits " + SolarAuxUtils::str(int(NMatchedHits)) + " >= " + SolarAuxUtils::str(int(TheFlash.PEs().size())) + "\n";
         }
       }
     }
