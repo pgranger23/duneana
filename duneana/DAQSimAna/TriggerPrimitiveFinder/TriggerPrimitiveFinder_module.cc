@@ -102,7 +102,8 @@ void TriggerPrimitiveFinder::produce(art::Event & e)
                               0,                                    //SIGMA_PEAK_AMPLITUDE.
                               hit.charge,                           //HIT_INTEGRAL.
                               0,                                    //HIT_SIGMA_INTEGRAL.
-                              hit.charge,                           //SUMMED CHARGE. 
+                              hit.charge,                           //SUMMED CHARGE ROI. 
+			      hit.charge,                           //SUMMED CHARGE HIT. TO BE FIXED 
                               0,                                    //MULTIPLICITY.
                               0,                                    //LOCAL_INDEX.
                               0,                                    //WIRE ID.

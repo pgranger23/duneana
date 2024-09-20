@@ -221,7 +221,7 @@ void DataHit::analyze(art::Event const & evt)
         Hit_Chan.push_back(channel);
         Hit_Time   .push_back(ThisHit.PeakTime());
         Hit_RMS    .push_back(ThisHit.RMS());
-        Hit_SADC   .push_back(ThisHit.SummedADC());
+        Hit_SADC   .push_back(ThisHit.ROISummedADC());
         Hit_Int    .push_back(ThisHit.Integral());
         Hit_Peak   .push_back(ThisHit.PeakAmplitude());
     } 

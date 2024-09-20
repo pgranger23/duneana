@@ -617,7 +617,7 @@ void DAQQuickClustering::analyze(art::Event const & evt)
     HitChan[colHitCount] = ThisHit.Channel();
     HitTime[colHitCount] = ThisHit.PeakTime();
     HitRMS [colHitCount] = ThisHit.RMS();
-    HitSADC[colHitCount] = ThisHit.SummedADC();
+    HitSADC[colHitCount] = ThisHit.ROISummedADC();
     HitInt [colHitCount] = ThisHit.Integral();
     HitPeak[colHitCount] = ThisHit.PeakAmplitude();
     NCorrespondingIDEs[colHitCount] = ThisHitIDE.size();
