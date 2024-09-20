@@ -112,7 +112,8 @@ void AbsRunningSumTPFinder::produce(art::Event & e)
 				0,                                         //SIGMA_PEAK_AMPLITUDE.
 				hit.SADC,                                  //HIT_INTEGRAL.
 				0,                                         //HIT_SIGMA_INTEGRAL.
-				hit.SADC,                                  //SUMMED CHARGE. 
+				hit.SADC,                                  //SUMMED CHARGE ROI. 
+				hit.SADC,                                  //SUMMED CHARGE HIT. TO BE FIXED 
 				0,                                         //MULTIPLICITY.
 				0,                                         //LOCAL_INDEX.
 				0,                                         //WIRE ID. (?)
@@ -138,7 +139,8 @@ void AbsRunningSumTPFinder::produce(art::Event & e)
 				0,                                         //SIGMA_PEAK_AMPLITUDE.
 				hit.SADC,                                  //HIT_INTEGRAL.
 				0,                                         //HIT_SIGMA_INTEGRAL.
-				hit.SADC,                                  //SUMMED CHARGE. 
+				hit.SADC,                                  //SUMMED CHARGE ROI. 
+				hit.SADC,                                  //SUMMED CHARGE HIT. TO BE FIXED 
 				0,                                         //MULTIPLICITY.
 				1,                                         //LOCAL_INDEX.
 				0,                                         //WIRE ID.

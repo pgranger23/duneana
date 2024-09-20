@@ -1,5 +1,4 @@
-# solar_ana_radiological_decay0_dune10kt_1x2x6.fcl
-# Specific configuration for signal+bkg events
+# Specific configuration for investigating Marley events
 # Run SolarNuAna on the output of a standard reco workflow for DUNE FD
 
 #include "solar_ana_dune10kt_1x2x6.fcl"
