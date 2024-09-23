@@ -16,7 +16,7 @@ art_make(BASENAME_ONLY
       lardataobj::RecoBase
       art_root_io::tfile_support
     SERVICE_LIBRARIES
-      duneana_SolarNuAna
+      #duneana_SolarNuAna
       lardata::Utilities
       lardataobj::RecoBase
       ${ART_ROOT_IO_ROOTINPUT_SOURCE}
@@ -41,7 +41,8 @@ art_make(BASENAME_ONLY
       art::Utilities 
       messagefacility::MF_MessageLogger
       cetlib::cetlib 
-      duneana_SolarNuAna
+      #duneana_SolarNuAna
+      duneopdet::SolarNuUtils
       ROOT::Core ROOT::Hist ROOT::Tree
 )
 

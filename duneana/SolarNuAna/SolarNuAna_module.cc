@@ -51,9 +51,9 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "fhiclcpp/ParameterSet.h"
 
-#include "AdjHitsUtils.h"
-#include "SolarAuxUtils.h"
-#include "AdjOpHitsUtils.h"
+#include "duneopdet/SolarNuUtils/AdjHitsUtils.h"
+#include "duneopdet/SolarNuUtils/SolarAuxUtils.h"
+#include "duneopdet/SolarNuUtils/AdjOpHitsUtils.h"
 
 namespace solar
 {
