@@ -23,13 +23,13 @@ services:
 #services.PhotonBackTrackerService:	@erase
 
 physics:
-{ 
+{
   analyzers:
   {
     solarnuana:     @local::solar_nu_ana_vd
   }
   ana: [ solarnuana ]
-  end_paths: [ ana ] 
+  end_paths: [ ana ]
 }
 
 source:
