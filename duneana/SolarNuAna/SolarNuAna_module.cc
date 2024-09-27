@@ -725,7 +725,7 @@ namespace solar
             ThisOphitPurity /= int(ThisOpHitTrackIds.size());
           }
           ThisOpFlashPur += ThisOphitPurity * OpHit.PE();
-          auto OpHitXYZ = geo->OpDetGeoFromOpChannel(OpHit.OpChannel()).GetCenter();
+          auto OpHitXYZ = wireReadout.OpDetGeoFromOpChannel(OpHit.OpChannel()).GetCenter();
           SOpHitPur.push_back(ThisOphitPurity);
           SOpHitChannel.push_back(OpHit.OpChannel());
           SOpHitT.push_back(OpHit.PeakTime());
