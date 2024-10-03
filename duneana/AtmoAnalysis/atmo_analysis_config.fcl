@@ -8,6 +8,7 @@ atmoAnalysis:
    DirectionRecoLabelNuE:      "anglereconue"
    DirectionRecoLabelNuMuPfps: "anglereconumupfps"
    DirectionRecoLabelNuEPfps:  "anglereconuepfps"
+   DirectionRecoLabelHits:     "anglerecohits"
    EnergyRecoNuELabel:         "energyrecnue"
    EnergyRecoNuMuLabel:        "energyrecnumu"
    EnergyRecoNuMuMCSLabel:     "energyrecnumumcs"

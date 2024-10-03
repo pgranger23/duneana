@@ -112,6 +112,9 @@ private:
   double fDirectionRecNuMuPfps_x;
   double fDirectionRecNuMuPfps_y;
   double fDirectionRecNuMuPfps_z;
+  double fDirectionRecHits_x;
+  double fDirectionRecHits_y;
+  double fDirectionRecHits_z;
   double fCVNScoreNuMu;
   double fCVNScoreNuE;
   double fCVNScoreNC;
@@ -135,6 +138,7 @@ private:
   std::string fDirectionRecoLabelNuE;
   std::string fDirectionRecoLabelNuMuPfps;
   std::string fDirectionRecoLabelNuEPfps;
+  std::string fDirectionRecoLabelHits;
   std::string fEnergyRecoNuELabel;
   std::string fEnergyRecoNuMuLabel;
   std::string fEnergyRecoNuMuMCSLabel;
@@ -157,6 +161,7 @@ test::atmoAnalysis::atmoAnalysis(fhicl::ParameterSet const& p)
   fDirectionRecoLabelNuE = p.get<std::string>("DirectionRecoLabelNuE");
   fDirectionRecoLabelNuMuPfps = p.get<std::string>("DirectionRecoLabelNuMuPfps");
   fDirectionRecoLabelNuEPfps = p.get<std::string>("DirectionRecoLabelNuEPfps");
+  fDirectionRecoLabelHits = p.get<std::string>("DirectionRecoLabelHits");
 
   fEnergyRecoNuELabel = p.get<std::string>("EnergyRecoNuELabel");
   fEnergyRecoNuMuLabel = p.get<std::string>("EnergyRecoNuMuLabel");
@@ -259,6 +264,16 @@ void test::atmoAnalysis::analyze(art::Event const& evt)
           fDirectionRecNuEPfps_x = dirReco->fRecoDirection.X();
           fDirectionRecNuEPfps_y = dirReco->fRecoDirection.Y();
           fDirectionRecNuEPfps_z = dirReco->fRecoDirection.Z();
+        }
+        else{
+          mf::LogWarning("CAFMaker") << "No AngularRecoOutput found with label '" << fDirectionRecoLabelNuEPfps << "'";
+        }
+
+        dirReco = evt.getHandle<dune::AngularRecoOutput>(fDirectionRecoLabelHits);
+        if(!dirReco.failedToGet()){
+          fDirectionRecHits_x = dirReco->fRecoDirection.X();
+          fDirectionRecHits_y = dirReco->fRecoDirection.Y();
+          fDirectionRecHits_z = dirReco->fRecoDirection.Z();
         }
         else{
           mf::LogWarning("CAFMaker") << "No AngularRecoOutput found with label '" << fDirectionRecoLabelNuEPfps << "'";
@@ -398,6 +413,9 @@ void test::atmoAnalysis::beginJob()
   fTree->Branch("DirectionRecNuMuPfps_x", &fDirectionRecNuMuPfps_x);
   fTree->Branch("DirectionRecNuMuPfps_y", &fDirectionRecNuMuPfps_y);
   fTree->Branch("DirectionRecNuMuPfps_z", &fDirectionRecNuMuPfps_z);
+  fTree->Branch("DirectionRecHits_x", &fDirectionRecHits_x);
+  fTree->Branch("DirectionRecHits_y", &fDirectionRecHits_y);
+  fTree->Branch("DirectionRecHits_z", &fDirectionRecHits_z);
   fTree->Branch("IsCC", &fIsCC);
   fTree->Branch("InterMode", &fInterMode);
 }
