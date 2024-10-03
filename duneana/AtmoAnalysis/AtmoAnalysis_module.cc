@@ -115,6 +115,12 @@ private:
   double fCVNScoreNuMu;
   double fCVNScoreNuE;
   double fCVNScoreNC;
+  double fCVNScoreProton0;
+  double fCVNScoreProton1;
+  double fCVNScoreProton2;
+  double fCVNScoreProton3;
+  double fCVNScorePion0;
+  double fCVNScorePion1;
 
   double fErecNuMu;
   double fErecNuE;
@@ -269,6 +275,12 @@ void test::atmoAnalysis::analyze(art::Event const& evt)
           fCVNScoreNC = scores[0][0];
           fCVNScoreNuE = scores[0][1];
           fCVNScoreNuMu = scores[0][2];
+          fCVNScoreProton0 = scores[1][0];
+          fCVNScoreProton1 = scores[1][1];
+          fCVNScoreProton2 = scores[1][2];
+          fCVNScoreProton3 = scores[1][3];
+          fCVNScorePion0 = scores[2][0];
+          fCVNScorePion1 = scores[2][1];
         }
          else{
           mf::LogWarning("CAFMaker") << "No CVNResult found with label '" << fCVNLabel << "'";
@@ -318,14 +330,19 @@ void test::atmoAnalysis::analyze(art::Event const& evt)
         //Compute visible energy
         fVisibleEnergy = 0;
         auto theseProds = evt.getHandle<std::vector<sim::SimEnergyDeposit>>(fEdepLabel);
-        if(theseProds.isValid()){
-          for(const art::Ptr<sim::SimEnergyDeposit> &edep edep : theseProds){
-            fVisibleEnergy += edep.Energy();
-          }
-        }
-        else{
+        if(!theseProds.isValid()){
           mf::LogWarning("CAFMaker") << "No SimEnergyDeposit found with label '" << fEdepLabel << "'";
+          
+        }
+
+        std::vector<art::Ptr<sim::SimEnergyDeposit>> edeps;
+        art::fill_ptr_vector(edeps,theseProds);
+        std::cout << "Number of edeps: " << edeps.size() << std::endl;
+        for(const art::Ptr<sim::SimEnergyDeposit> &edep : edeps){
+          fVisibleEnergy += edep->Energy();
+        }
       }
+
     }
 
   fTree->Fill();
@@ -357,6 +374,12 @@ void test::atmoAnalysis::beginJob()
   fTree->Branch("CVNScoreNuMu", &fCVNScoreNuMu);
   fTree->Branch("CVNScoreNuE", &fCVNScoreNuE);
   fTree->Branch("CVNScoreNC", &fCVNScoreNC);
+  fTree->Branch("fCVNScoreProton0", &fCVNScoreProton0);
+  fTree->Branch("fCVNScoreProton1", &fCVNScoreProton1);
+  fTree->Branch("fCVNScoreProton2", &fCVNScoreProton2);
+  fTree->Branch("fCVNScoreProton3", &fCVNScoreProton3);
+  fTree->Branch("fCVNScorePion0", &fCVNScorePion0);
+  fTree->Branch("fCVNScorePion1", &fCVNScorePion1);
   fTree->Branch("ErecNuMu", &fErecNuMu);
   fTree->Branch("ErecNuE", &fErecNuE);
   fTree->Branch("ErecNuMuRange", &fErecNuMuRange);
