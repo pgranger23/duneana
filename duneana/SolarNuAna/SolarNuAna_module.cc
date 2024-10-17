@@ -25,7 +25,15 @@
 #include <fcntl.h>
 
 // Framework includes (not all might be necessary)
-#include "larcore/Geometry/Geometry.h"
+#include "art/Framework/Core/EDAnalyzer.h"
+#include "art/Framework/Core/ModuleMacros.h"
+#include "art/Framework/Principal/Event.h"
+#include "art/Framework/Principal/Handle.h"
+#include "art/Framework/Principal/Run.h"
+#include "art/Framework/Principal/SubRun.h"
+#include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "canvas/Persistency/Common/FindMany.h"
+#include "canvas/Persistency/Common/FindManyP.h"
 #include "larcorealg/Geometry/GeometryCore.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Track.h"
@@ -51,9 +59,9 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "fhiclcpp/ParameterSet.h"
 
-#include "AdjHitsUtils.h"
-#include "SolarAuxUtils.h"
-#include "AdjOpHitsUtils.h"
+#include "duneopdet/SolarNuUtils/AdjHitsUtils.h"
+#include "duneopdet/SolarNuUtils/SolarAuxUtils.h"
+#include "duneopdet/SolarNuUtils/AdjOpHitsUtils.h"
 
 namespace solar
 {
@@ -130,7 +138,7 @@ namespace solar
     TH2F *hDriftTime;
 
     // --- Declare our services
-    art::ServiceHandle<geo::Geometry> geo;
+    geo::WireReadoutGeom const& wireReadout = art::ServiceHandle<geo::WireReadout>()->Get();
     art::ServiceHandle<cheat::BackTrackerService> bt_serv;
     art::ServiceHandle<cheat::PhotonBackTrackerService> pbt;
     art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
@@ -717,7 +725,7 @@ namespace solar
             ThisOphitPurity /= int(ThisOpHitTrackIds.size());
           }
           ThisOpFlashPur += ThisOphitPurity * OpHit.PE();
-          auto OpHitXYZ = geo->OpDetGeoFromOpChannel(OpHit.OpChannel()).GetCenter();
+          auto OpHitXYZ = wireReadout.OpDetGeoFromOpChannel(OpHit.OpChannel()).GetCenter();
           SOpHitPur.push_back(ThisOphitPurity);
           SOpHitChannel.push_back(OpHit.OpChannel());
           SOpHitT.push_back(OpHit.PeakTime());
@@ -778,8 +786,8 @@ namespace solar
             {
               ThisOphitPurity += 1;
             }
-          }
-          auto OpHitXYZ = geo->OpDetGeoFromOpChannel(OpHit.OpChannel()).GetCenter();
+          } 
+          auto OpHitXYZ = wireReadout.OpDetGeoFromOpChannel(OpHit.OpChannel()).GetCenter();
           TotalFlashPE += OpHit.PE();
           varY += pow(TheFlash.YCenter() - OpHitXYZ.Y(), 2) * OpHit.PE();
           varZ += pow(TheFlash.ZCenter() - OpHitXYZ.Z(), 2) * OpHit.PE();
@@ -933,7 +941,7 @@ namespace solar
           if (TPCHit.PeakTime() < 0)
             solaraux->PrintInColor("Negative Cluster Time = " + SolarAuxUtils::str(TPCHit.PeakTime()), SolarAuxUtils::GetColor("red"));
           ncharge += TPCHit.Integral();
-          const geo::WireGeo *wire = geo->GeometryCore::WirePtr(TPCHit.WireID()); // Wire directions should be the same for all hits of the same view (can be used to check)
+          const geo::WireGeo *wire = wireReadout.WirePtr(TPCHit.WireID()); // Wire directions should be the same for all hits of the same view (can be used to check)
           double hitCharge;
 
           geo::Point_t hXYZ = wire->GetCenter();
@@ -1662,5 +1670,4 @@ namespace solar
       return false;
   }
 } // namespace solar
-
 DEFINE_ART_MODULE(solar::SolarNuAna)
