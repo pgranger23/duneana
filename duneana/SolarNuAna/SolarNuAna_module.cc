@@ -24,16 +24,7 @@
 #include "TRandom.h"
 #include <fcntl.h>
 
-// Framework includes (not all might be necessary)
-#include "art/Framework/Core/EDAnalyzer.h"
-#include "art/Framework/Core/ModuleMacros.h"
-#include "art/Framework/Principal/Event.h"
-#include "art/Framework/Principal/Handle.h"
-#include "art/Framework/Principal/Run.h"
-#include "art/Framework/Principal/SubRun.h"
-#include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "canvas/Persistency/Common/FindMany.h"
-#include "canvas/Persistency/Common/FindManyP.h"
+// Larsoft includes (not all might be necessary)
 #include "larcorealg/Geometry/GeometryCore.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Track.h"
@@ -45,6 +36,8 @@
 #include "larsim/MCCheater/BackTrackerService.h"
 #include "larsim/MCCheater/PhotonBackTrackerService.h"
 #include "larsim/MCCheater/ParticleInventoryService.h"
+
+// Art includes and others
 #include "art/Framework/Core/EDAnalyzer.h"
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
@@ -59,9 +52,9 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "fhiclcpp/ParameterSet.h"
 
-#include "duneopdet/SolarNuUtils/AdjHitsUtils.h"
 #include "duneopdet/SolarNuUtils/SolarAuxUtils.h"
 #include "duneopdet/SolarNuUtils/AdjOpHitsUtils.h"
+#include "dunereco/LowEUtils/LowEUtils.h"
 
 namespace solar
 {
@@ -81,10 +74,6 @@ namespace solar
   private:
     // --- Some of our own functions.
     void ResetVariables();
-    long unsigned int WhichGeneratorType(int TrID);
-    bool InMyMap(int TrID, std::map<int, float> TrackIDMap);
-    bool InMyMap(int TrID, std::map<int, simb::MCParticle> ParMap);
-    void FillMyMaps(std::map<int, simb::MCParticle> &MyMap, art::FindManyP<simb::MCParticle> Assn, art::ValidHandle<std::vector<simb::MCTruth>> Hand);
 
     // --- Our fcl parameter labels for the modules that made the data products
     std::string fHitLabel, fTrackLabel, fOpHitLabel, fOpFlashLabel, fGEANTLabel;
@@ -143,8 +132,8 @@ namespace solar
     art::ServiceHandle<cheat::PhotonBackTrackerService> pbt;
     art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
     std::unique_ptr<solar::SolarAuxUtils> solaraux;
-    std::unique_ptr<solar::AdjHitsUtils> adjhits;
     std::unique_ptr<solar::AdjOpHitsUtils> adjophits;
+    std::unique_ptr<solar::LowEUtils> lowe;
   };
 #endif
 
@@ -152,8 +141,8 @@ namespace solar
   SolarNuAna::SolarNuAna(fhicl::ParameterSet const &p)
       : EDAnalyzer(p),
         solaraux(new solar::SolarAuxUtils(p)),
-        adjhits(new solar::AdjHitsUtils(p)),
-        adjophits(new solar::AdjOpHitsUtils(p))
+        adjophits(new solar::AdjOpHitsUtils(p)),
+        lowe(new solar::LowEUtils(p))
   {
     this->reconfigure(p);
   }
@@ -500,7 +489,7 @@ namespace solar
       {
         auto ThisValidHanlde = evt.getValidHandle<std::vector<simb::MCTruth>>(fLabels[i]); // Get generator handles
         art::FindManyP<simb::MCParticle> Assn(ThisValidHanlde, evt, fGEANTLabel);          // Assign labels to MCPArticles
-        FillMyMaps(GeneratorParticles[i], Assn, ThisValidHanlde);                          // Fill empty list with previously assigned particles
+        solaraux->FillMyMaps(GeneratorParticles[i], Assn, ThisValidHanlde);                          // Fill empty list with previously assigned particles
         if (GeneratorParticles[i].size() < 1000)
         {
           sMcTruth = sMcTruth + "\n# of particles " + SolarAuxUtils::str(int(GeneratorParticles[i].size())) + "\tfrom gen " + SolarAuxUtils::str(int(i) + 1) + " " + fLabels[i];
@@ -605,7 +594,7 @@ namespace solar
           {
             if (ide->numElectrons > 1e-6 && ide->energy > 1e-6 && abs(ide->x) > 1e-6 && abs(ide->y) > 1e-6 && abs(ide->z) > 1e-6)
             {
-              if (InMyMap((*SignalParticle)->TrackId(), SignalMaxEDepMap) == false)
+              if (SolarAuxUtils::InMyMap((*SignalParticle)->TrackId(), SignalMaxEDepMap) == false)
               {
                 SignalMaxEDepMap[(*SignalParticle)->TrackId()] = ide->energy;
                 SignalMaxEDepXMap[(*SignalParticle)->TrackId()] = ide->x;
@@ -911,16 +900,16 @@ namespace solar
     //-------------------------------------------------------------- Cluster creation and analysis ------------------------------------------------------------------//
     //---------------------------------------------------------------------------------------------------------------------------------------------------------------//
     // --- Now calculate the clusters ...
-    adjhits->CalcAdjHits(ColHits0, Clusters0, hAdjHits, hAdjHitsADCInt, false);
+    lowe->CalcAdjHits(ColHits0, Clusters0, hAdjHits, hAdjHitsADCInt, false);
     HitNum.push_back(ColHits0.size());
     ClusterNum.push_back(Clusters0.size());
-    adjhits->CalcAdjHits(ColHits1, Clusters1, hAdjHits, hAdjHitsADCInt, false);
+    lowe->CalcAdjHits(ColHits1, Clusters1, hAdjHits, hAdjHitsADCInt, false);
     HitNum.push_back(ColHits1.size());
     ClusterNum.push_back(Clusters1.size());
-    adjhits->CalcAdjHits(ColHits2, Clusters2, hAdjHits, hAdjHitsADCInt, false);
+    lowe->CalcAdjHits(ColHits2, Clusters2, hAdjHits, hAdjHitsADCInt, false);
     HitNum.push_back(ColHits2.size());
     ClusterNum.push_back(Clusters2.size());
-    adjhits->CalcAdjHits(ColHits3, Clusters3, hAdjHits, hAdjHitsADCInt, false);
+    lowe->CalcAdjHits(ColHits3, Clusters3, hAdjHits, hAdjHitsADCInt, false);
     HitNum.push_back(ColHits3.size());
     ClusterNum.push_back(Clusters3.size());
     fMCTruthTree->Fill();
@@ -1028,7 +1017,7 @@ namespace solar
             }
           }
 
-          long unsigned int GeneratorType = WhichGeneratorType(MainTrID);
+          long unsigned int GeneratorType = SolarAuxUtils::WhichGeneratorType(GeneratorParticles, MainTrID);
           VecGenPur[int(GeneratorType)] = VecGenPur[int(GeneratorType)] + TPCHit.Integral();
           mf::LogDebug("SolarNuAna") << "\nThis particle type " << GeneratorType << "\nThis cluster's main track ID " << MainTrID;
           if (SignalTrackIDs.find(MainTrID) != SignalTrackIDs.end())
@@ -1650,61 +1639,6 @@ namespace solar
     OpFlashT.clear();
     OpFlashDeltaT.clear();
     OpFlashNHit.clear();
-  }
-
-  //......................................................
-  // This function returns the type of generator particle that produced a given MCTruth
-  long unsigned int SolarNuAna::WhichGeneratorType(int TrID)
-  {
-    for (long unsigned int i = 0; i < fLabels.size(); i++)
-    {
-      if (InMyMap(TrID, GeneratorParticles[i]))
-      {
-        return i + 1;
-      }
-    }
-    return 0; // If no match, then who knows???
-  }
-
-  //......................................................
-  // This function fills a map with the MCParticles from a given MCTruth
-  void SolarNuAna::FillMyMaps(std::map<int, simb::MCParticle> &MyMap, art::FindManyP<simb::MCParticle> Assn, art::ValidHandle<std::vector<simb::MCTruth>> Hand)
-  {
-    for (size_t L1 = 0; L1 < Hand->size(); ++L1)
-    {
-      for (size_t L2 = 0; L2 < Assn.at(L1).size(); ++L2)
-      {
-        const simb::MCParticle ThisPar = (*Assn.at(L1).at(L2));
-        MyMap[abs(ThisPar.TrackId())] = ThisPar;
-      }
-    }
-    return;
-  }
-
-  //......................................................
-  // This function checks if a given TrackID is in a given map
-  bool SolarNuAna::InMyMap(int TrID, std::map<int, simb::MCParticle> ParMap)
-  {
-    std::map<int, simb::MCParticle>::iterator Particle;
-    Particle = ParMap.find(TrID);
-    if (Particle != ParMap.end())
-    {
-      return true;
-    }
-    else
-      return false;
-  }
-
-  bool SolarNuAna::InMyMap(int TrID, std::map<int, float> TrackIDMap)
-  {
-    std::map<int, float>::iterator Particle;
-    Particle = TrackIDMap.find(TrID);
-    if (Particle != TrackIDMap.end())
-    {
-      return true;
-    }
-    else
-      return false;
   }
 } // namespace solar
 DEFINE_ART_MODULE(solar::SolarNuAna)
