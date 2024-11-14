@@ -55,9 +55,8 @@
 #include "lardataalg/DetectorInfo/DetectorPropertiesStandard.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
-#include "larcore/Geometry/Geometry.h"
 #include "larcore/CoreUtils/ServiceUtil.h"
-#include "larcorealg/Geometry/GeometryCore.h"
+#include "larcorealg/Geometry/fwd.h"
 
 #include "nusimdata/SimulationBase/MCParticle.h"
 #include "larsim/MCCheater/BackTrackerService.h"
@@ -127,7 +126,7 @@ private:
     const std::vector<art::Ptr<anab::Calorimetry>> &calo,
     const std::map<geo::WireID, art::Ptr<raw::RawDigit>> &rawdigits,
     const std::vector<GlobalTrackInfo> &tracks,
-    const geo::GeometryCore *geo,
+    const geo::WireReadoutGeom *wireReadout,
     const detinfo::DetectorClocksData &clock_data,
     const cheat::BackTrackerService *bt_serv,
     const dune::EDet det);
@@ -138,6 +137,7 @@ private:
     const art::FindManyP<recob::SpacePoint> &PFParticleSPs);
 
   void FillTrackEndHits(const geo::GeometryCore *geometry,
+    const geo::WireReadoutGeom *wireReadout,
     const detinfo::DetectorPropertiesData &dprop,
     const recob::Track &track,
     const std::vector<art::Ptr<recob::Hit>> &allHits,
@@ -151,7 +151,8 @@ private:
     const std::map<int, std::vector<std::pair<geo::WireID, const sim::IDE*>>> id_to_ide_map,
     const std::map<int, std::vector<art::Ptr<recob::Hit>>> id_to_truehit_map,
     const detinfo::DetectorPropertiesData &dprop,
-    const geo::GeometryCore *geo);
+    const geo::GeometryCore *geo,
+    const geo::WireReadoutGeom *wireReadout);
 
   TrackHitInfo MakeHit(const recob::Hit &hit,
     unsigned hkey,
@@ -159,7 +160,7 @@ private:
     const recob::Track &trk,
     const art::Ptr<recob::SpacePoint> &sp,
     const std::vector<art::Ptr<anab::Calorimetry>> &calo,
-    const geo::GeometryCore *geo,
+    const geo::WireReadoutGeom *wireReadout,
     const detinfo::DetectorClocksData &dclock,
     const cheat::BackTrackerService *bt_serv);
 
@@ -168,7 +169,7 @@ private:
     // declare truth utils, ported from CAFana in SBNCode
     std::map<int, std::vector<std::pair<geo::WireID, const sim::IDE*>>>
     PrepSimChannels(const std::vector<art::Ptr<sim::SimChannel>> &simchannels,
-		    const geo::GeometryCore &geo);
+		    const geo::WireReadoutGeom &geo);
     std::map<int, std::vector<art::Ptr<recob::Hit>>>
     PrepTrueHits(const std::vector<art::Ptr<recob::Hit>> &allHits,
 		 const detinfo::DetectorClocksData &clockData,
