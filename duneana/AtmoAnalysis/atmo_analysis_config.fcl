@@ -16,6 +16,9 @@ atmoAnalysis:
    EnergyRecoNCLabel:          "energyrecnc"
    CVNLabel:	                "cvneva:cvnresult"
    EdepLabel:                  "largeant:LArG4DetectorServicevolTPCActiveInner"
+   SpacePointLabel:            "spsolve"
+   SpacePointLabelPandora:     "pandora"
+   PFPLabel:                   "pandora"
    MCTruthLabel:	             "generator"
 }
 

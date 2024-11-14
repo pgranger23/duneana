@@ -95,7 +95,11 @@ private:
   double fTrueNuPdg;
   double fTrueNuE;
   bool fIsCC;
+  bool fIsContainedTrue;
+  int fNbSpacepointsOutsideFiducial;
+  int fNbSpacepointsPandoraOutsideFiducial;
   int fInterMode;
+  int fNbPFPs;
 
   double fRecoVtx_x;
   double fRecoVtx_y;
@@ -146,8 +150,16 @@ private:
   std::string fEnergyRecoNCLabel;
   std::string fCVNLabel;
   std::string fEdepLabel;
+  std::string fSpacePointLabel;
+  std::string fSpacePointLabelPandora;
+  std::string fPFPLabel;
 
   const geo::Geometry* fGeom;
+  void clearValues();
+  std::vector<double> fActiveBounds;
+  std::vector<double> getActiveBounds();
+  bool isEnergyDepositedOutsideActiveVolume(const sim::SimEnergyDeposit &edep);
+  bool isSpacePointOutsideFiducialVolume(const recob::SpacePoint &sp, double margin);
 };
 
 
@@ -171,11 +183,16 @@ test::atmoAnalysis::atmoAnalysis(fhicl::ParameterSet const& p)
 
   fCVNLabel = p.get<std::string>("CVNLabel");
   fEdepLabel = p.get<std::string>("EdepLabel");
+  fPFPLabel = p.get<std::string>("PFPLabel");
+  fSpacePointLabel = p.get<std::string>("SpacePointLabel");
+  fSpacePointLabelPandora = p.get<std::string>("SpacePointLabelPandora");
   fGeom    = &*art::ServiceHandle<geo::Geometry>();
+  fActiveBounds = getActiveBounds();
 } 
 
 void test::atmoAnalysis::analyze(art::Event const& evt)
 {
+  clearValues();
   const art::ServiceHandle<cheat::BackTrackerService> btServ;
   fEventID = evt.id().event();
   fRunID = evt.id().run();
@@ -206,10 +223,6 @@ void test::atmoAnalysis::analyze(art::Event const& evt)
   lar_pandora::VertexVector vertexVector;
   lar_pandora::PFParticlesToVertices particlesToVertices;
   lar_pandora::LArPandoraHelper::CollectVertices(evt, fPandoraNuVertexModuleLabel, vertexVector, particlesToVertices);
-
-  fRecoVtx_x = -999;
-  fRecoVtx_y = -999;
-  fRecoVtx_z = -999;
 
   for (unsigned int n = 0; n < particleVector.size(); ++n) {
       const art::Ptr<recob::PFParticle> particle = particleVector.at(n);
@@ -279,9 +292,6 @@ void test::atmoAnalysis::analyze(art::Event const& evt)
           mf::LogWarning("CAFMaker") << "No AngularRecoOutput found with label '" << fDirectionRecoLabelNuEPfps << "'";
         }
 
-        fCVNScoreNuE = -999;
-        fCVNScoreNuMu = -999;
-        fCVNScoreNC = -999;
         //Filling CVN
         art::Handle<std::vector<cvn::Result>> cvnin = evt.getHandle<std::vector<cvn::Result>>(fCVNLabel);
         if( !cvnin.failedToGet() && !cvnin->empty()) {
@@ -349,18 +359,136 @@ void test::atmoAnalysis::analyze(art::Event const& evt)
           mf::LogWarning("CAFMaker") << "No SimEnergyDeposit found with label '" << fEdepLabel << "'";
           
         }
+        else{
+          std::vector<art::Ptr<sim::SimEnergyDeposit>> edeps;
+          art::fill_ptr_vector(edeps,theseProds);
+          std::cout << "Number of edeps: " << edeps.size() << std::endl;
+          for(const art::Ptr<sim::SimEnergyDeposit> &edep : edeps){
+            fVisibleEnergy += edep->Energy();
+            fIsContainedTrue &= !isEnergyDepositedOutsideActiveVolume(*edep);
+          }
 
-        std::vector<art::Ptr<sim::SimEnergyDeposit>> edeps;
-        art::fill_ptr_vector(edeps,theseProds);
-        std::cout << "Number of edeps: " << edeps.size() << std::endl;
-        for(const art::Ptr<sim::SimEnergyDeposit> &edep : edeps){
-          fVisibleEnergy += edep->Energy();
+          std::cout << "IsContainedTrue -> " << fIsContainedTrue << std::endl;
         }
+
+        std::vector<art::Ptr<recob::SpacePoint>> spacePoints = dune_ana::DUNEAnaEventUtils::GetSpacePoints(evt, fSpacePointLabel);
+        fNbSpacepointsOutsideFiducial += std::count_if(spacePoints.begin(), spacePoints.end(), [this](const art::Ptr<recob::SpacePoint> &sp){return isSpacePointOutsideFiducialVolume(*sp, 20);});
+
+        std::vector<art::Ptr<recob::SpacePoint>> spacePointsPandora = dune_ana::DUNEAnaEventUtils::GetSpacePoints(evt, fSpacePointLabelPandora);
+        fNbSpacepointsPandoraOutsideFiducial += std::count_if(spacePointsPandora.begin(), spacePointsPandora.end(), [this](const art::Ptr<recob::SpacePoint> &sp){return isSpacePointOutsideFiducialVolume(*sp, 20);});
+        
+
+        std::cout << "Number of spacepoints outside fiducial volume: " << fNbSpacepointsOutsideFiducial << std::endl;
+        std::cout << "Number of spacepoints outside fiducial volume (pandora): " << fNbSpacepointsPandoraOutsideFiducial << std::endl;
+
+        std::vector<art::Ptr<recob::PFParticle>> pfps = dune_ana::DUNEAnaEventUtils::GetPFParticles(evt, fPFPLabel);
+        fNbPFPs = pfps.size();
       }
 
     }
 
   fTree->Fill();
+}
+
+bool test::atmoAnalysis::isEnergyDepositedOutsideActiveVolume(const sim::SimEnergyDeposit &edep){
+  double start[3] = {edep.StartX(), edep.StartY(), edep.StartZ()};
+  double end[3] = {edep.EndX(), edep.EndY(), edep.EndZ()};
+  double margin = 5;
+  if(start[0] - margin < fActiveBounds[0] || start[0] + margin > fActiveBounds[1] || start[1] - margin < fActiveBounds[2] || start[1] + margin > fActiveBounds[3] || start[2] - margin < fActiveBounds[4] || start[2] + margin > fActiveBounds[5]){
+    return true;
+  }
+  if(end[0] - margin < fActiveBounds[0] || end[0] + margin > fActiveBounds[1] || end[1] - margin < fActiveBounds[2] || end[1] + margin > fActiveBounds[3] || end[2] - margin < fActiveBounds[4] || end[2] + margin > fActiveBounds[5]){
+    return true;
+  }
+  return false;
+}
+
+bool test::atmoAnalysis::isSpacePointOutsideFiducialVolume(const recob::SpacePoint &sp, double margin){
+  double xyz[3] = {sp.XYZ()[0], sp.XYZ()[1], sp.XYZ()[2]};
+  if(xyz[0] - margin < fActiveBounds[0] || xyz[0] + margin > fActiveBounds[1] || xyz[1] - margin < fActiveBounds[2] || xyz[1] + margin > fActiveBounds[3] || xyz[2] - margin < fActiveBounds[4] || xyz[2] + margin > fActiveBounds[5]){
+    return true;
+  }
+  return false;
+}
+
+void test::atmoAnalysis::clearValues(){
+    fRecoVtx_x = -999;
+    fRecoVtx_y = -999;
+    fRecoVtx_z = -999;
+    fDirectionRecNuE_x = -999;
+    fDirectionRecNuE_y = -999;
+    fDirectionRecNuE_z = -999;
+    fDirectionRecNuMu_x = -999;
+    fDirectionRecNuMu_y = -999;
+    fDirectionRecNuMu_z = -999;
+    fDirectionRecNuEPfps_x = -999;
+    fDirectionRecNuEPfps_y = -999;
+    fDirectionRecNuEPfps_z = -999;
+    fDirectionRecNuMuPfps_x = -999;
+    fDirectionRecNuMuPfps_y = -999;
+    fDirectionRecNuMuPfps_z = -999;
+    fDirectionRecHits_x = -999;
+    fDirectionRecHits_y = -999;
+    fDirectionRecHits_z = -999;
+    fCVNScoreNuMu = -999;
+    fCVNScoreNuE = -999;
+    fCVNScoreNC = -999;
+    fCVNScoreProton0 = -999;
+    fCVNScoreProton1 = -999;
+    fCVNScoreProton2 = -999;
+    fCVNScoreProton3 = -999;
+    fCVNScorePion0 = -999;
+    fCVNScorePion1 = -999;
+    fErecNuMu = -999;
+    fErecNuE = -999;
+    fErecNuMuRange = -999;
+    fErecNuMuMCS = -999;
+    fErecNC = -999;
+    fVisibleEnergy = -999;
+    fTrueVtx_x = -999;
+    fTrueVtx_y = -999;
+    fTrueVtx_z = -999;
+    fTrueNuP_x = -999;
+    fTrueNuP_y = -999;
+    fTrueNuP_z = -999;
+    fTrueNuPdg = -999;
+    fTrueNuE = -999;
+    fIsCC = false;
+    fIsContainedTrue = true;
+    fNbSpacepointsOutsideFiducial = 0;
+    fNbPFPs = 0;
+    fNbSpacepointsPandoraOutsideFiducial = 0;
+    fInterMode = -999;
+}
+
+std::vector<double> test::atmoAnalysis::getActiveBounds(){
+  double minx = 99999;
+  double maxx = -99999;
+  double miny = 99999;
+  double maxy = -99999;
+  double minz = 99999;
+  double maxz = -99999;
+
+  std::vector<double> bounds = {minx, maxx, miny, maxy, minz, maxz};
+
+   for (geo::TPCGeo const& TPC: fGeom->Iterate<geo::TPCGeo>()) {
+    // get center in world coordinates
+    auto const center = TPC.GetCenter();
+    double tpcDim[3] = {TPC.HalfWidth(), TPC.HalfHeight(), 0.5*TPC.Length() };
+
+    if( center.X() - tpcDim[0] < bounds[0] ) bounds[0] = center.X() - tpcDim[0];
+    if( center.X() + tpcDim[0] > bounds[1] ) bounds[1] = center.X() + tpcDim[0];
+    if( center.Y() - tpcDim[1] < bounds[2] ) bounds[2] = center.Y() - tpcDim[1];
+    if( center.Y() + tpcDim[1] > bounds[3] ) bounds[3] = center.Y() + tpcDim[1];
+    if( center.Z() - tpcDim[2] < bounds[4] ) bounds[4] = center.Z() - tpcDim[2];
+    if( center.Z() + tpcDim[2] > bounds[5] ) bounds[5] = center.Z() + tpcDim[2];
+  } // for all TPC
+
+  //Tweak the bounds on the y axis as there is an extra on non-instrumented 8cm on each side...
+  bounds[2] += 8;
+  bounds[3] -= 8;
+ 
+  return bounds;
 }
 
 void test::atmoAnalysis::beginJob()
@@ -417,6 +545,10 @@ void test::atmoAnalysis::beginJob()
   fTree->Branch("DirectionRecHits_y", &fDirectionRecHits_y);
   fTree->Branch("DirectionRecHits_z", &fDirectionRecHits_z);
   fTree->Branch("IsCC", &fIsCC);
+  fTree->Branch("IsContainedTrue", &fIsContainedTrue);
+  fTree->Branch("NbSpacepointsOutsideFiducial", &fNbSpacepointsOutsideFiducial);
+  fTree->Branch("NbSpacepointsPandoraOutsideFiducial", &fNbSpacepointsPandoraOutsideFiducial);
+  fTree->Branch("NbPFPs", &fNbPFPs);
   fTree->Branch("InterMode", &fInterMode);
 }
 void test::atmoAnalysis::endJob()
