@@ -1,3 +1,5 @@
+include_directories("${dunedetdataformats_DIR}/../../../include")
+
 art_make( MODULE_LIBRARIES 
 	  larcorealg::Geometry
 	  larcore::Geometry_Geometry_service

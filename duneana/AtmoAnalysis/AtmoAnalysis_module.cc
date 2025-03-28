@@ -41,6 +41,8 @@
 #include "dunereco/FDSensOpt/FDSensOptData/AngularRecoOutput.h"
 #include "dunereco/FDSensOpt/FDSensOptData/EnergyRecoOutput.h"
 
+#include "detdataformats/trigger/TriggerPrimitive.hpp"
+
 #include "larpandora/LArPandoraInterface/LArPandoraHelper.h"
 
 #include <TTree.h>
@@ -80,6 +82,7 @@ private:
 
   TTree *fTree;
   TTree *fTreePrimaries;
+  TTree *fTreeTP;
 
   unsigned int fEventID;
   unsigned int fRunID;
@@ -155,6 +158,16 @@ private:
   bool fPrimaryContained;
   std::string fPrimaryEndProcess;
 
+  //Variables for the TPs tree
+  uint64_t fTPTimeStart;
+  uint64_t fTPTimePeak;
+  uint64_t fTPTimeOverThreshold;
+  int32_t fTPChannel;
+  uint32_t fTPADCIntegral;
+  uint16_t fTPADCPeak;
+  uint16_t fTPDetID;
+
+  //Labels
   std::string fMCTruthLabel;
   std::string fG4Label;
   std::string fPandoraNuVertexModuleLabel;
@@ -173,6 +186,7 @@ private:
   std::string fSpacePointLabel;
   std::string fSpacePointLabelPandora;
   std::string fPFPLabel;
+  std::string fTPLabel; 
 
   const geo::Geometry* fGeom;
   void clearValues();
@@ -209,6 +223,10 @@ dune::atmoAnalysis::atmoAnalysis(fhicl::ParameterSet const& p)
   fPFPLabel = p.get<std::string>("PFPLabel");
   fSpacePointLabel = p.get<std::string>("SpacePointLabel");
   fSpacePointLabelPandora = p.get<std::string>("SpacePointLabelPandora");
+
+
+  fTPLabel = p.get<std::string>("TPLabel", ""); //Put optional empty value as we don't want to enforce the presence of TPs
+
   fGeom    = &*art::ServiceHandle<geo::Geometry>();
   fActiveBounds = getActiveBounds();
 } 
@@ -276,6 +294,24 @@ void dune::atmoAnalysis::analyze(art::Event const& evt)
       fTreePrimaries->Fill();
     }
     
+  }
+
+  //Getting some TPs infos
+  art::Handle<std::vector<dunedaq::trgdataformats::TriggerPrimitive>> tpHandle = evt.getHandle<std::vector<dunedaq::trgdataformats::TriggerPrimitive>>(fTPLabel);
+  if(tpHandle.isValid()){
+    for(const dunedaq::trgdataformats::TriggerPrimitive &tp : *tpHandle){
+      fTPTimeStart = tp.time_start;
+      fTPTimePeak = tp.time_peak;
+      fTPTimeOverThreshold = tp.time_over_threshold;
+      fTPChannel = tp.channel;
+      fTPADCIntegral = tp.adc_integral;
+      fTPADCPeak = tp.adc_peak;
+      fTPDetID = tp.detid;
+      fTreeTP->Fill();
+    }
+  }
+  else{
+    mf::LogWarning("AtmoAnalysis") << "No TriggerPrimitive found with label '" << fTPLabel << "'";
   }
 
 
@@ -673,6 +709,19 @@ void dune::atmoAnalysis::beginJob()
   fTreePrimaries->Branch("VisibleE", &fPrimaryVisibleE);
   fTreePrimaries->Branch("IsContained", &fPrimaryContained);
   fTreePrimaries->Branch("EndProcess", &fPrimaryEndProcess);
+
+  fTreeTP = tfs->make<TTree>("TPs","Trigger Primitives Tree");
+  fTreeTP->Branch("eventID",&fEventID,"eventID/i");
+  fTreeTP->Branch("runID",&fRunID,"runID/i");
+  fTreeTP->Branch("subrunID",&fSubRunID,"subrunID/i");
+  fTreeTP->Branch("TimeStart", &fTPTimeStart);
+  fTreeTP->Branch("TimePeak", &fTPTimePeak);
+  fTreeTP->Branch("TimeOverThreshold", &fTPTimeOverThreshold);
+  fTreeTP->Branch("Channel", &fTPChannel);
+  fTreeTP->Branch("ADCIntegral", &fTPADCIntegral);
+  fTreeTP->Branch("ADCPeak", &fTPADCPeak);
+  fTreeTP->Branch("DetID", &fTPDetID);
+
 }
 void dune::atmoAnalysis::endJob()
 {

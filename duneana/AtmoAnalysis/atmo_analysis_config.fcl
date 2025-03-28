@@ -21,6 +21,7 @@ atmoAnalysis:
    PFPLabel:                   "pandora"
    MCTruthLabel:	             "generator"
    G4Label:                    "largeant"
+   TPLabel:                   "tpmakerTPC"
 }
 
 END_PROLOG
